@@ -89,8 +89,19 @@ export async function runSandbox(language: string, source: string, stdin: string
 
   const executableSource = buildSource(language, source, problemTemplateId);
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'coderoom-'));
-  await fs.writeFile(path.join(tempDir, spec.filename), executableSource, 'utf8');
-  await fs.writeFile(path.join(tempDir, 'stdin.txt'), stdin ?? '', 'utf8');
+  const sourcePath = path.join(tempDir, spec.filename);
+  const stdinPath = path.join(tempDir, 'stdin.txt');
+
+  await fs.writeFile(sourcePath, executableSource, 'utf8');
+  await fs.writeFile(stdinPath, stdin ?? '', 'utf8');
+
+  // Docker runs the sandbox as UID/GID 1000:1000. Node's mkdtemp() creates
+  // the temporary directory with owner-only permissions (typically 0700),
+  // which prevents the sandbox user from traversing /input on Linux. Make
+  // the mounted workspace readable/traversable without making it writable.
+  await fs.chmod(tempDir, 0o755);
+  await fs.chmod(sourcePath, 0o644);
+  await fs.chmod(stdinPath, 0o644);
 
   return new Promise((resolve) => {
     const started = Date.now();
