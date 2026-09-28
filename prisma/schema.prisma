@@ -1,0 +1,234 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+enum RoomMode {
+  PAIR
+  INTERVIEW
+  TEAM
+}
+
+enum RoomRole {
+  OWNER
+  EDITOR
+  VIEWER
+  INTERVIEWER
+}
+
+enum ExecutionStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  name           String
+  passwordHash   String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  sessions       Session[]
+  createdRooms   Room[]           @relation("RoomCreator")
+  memberships    RoomMember[]
+  comments       Comment[]
+  executions     Execution[]
+  documentUpdates DocumentUpdate[]
+  invites        RoomInvite[]
+  auditEvents    AuditEvent[]
+  roomEvents     RoomEvent[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Room {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  mode        RoomMode     @default(PAIR)
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   User         @relation("RoomCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  members     RoomMember[]
+  projects    Project[]
+  tests       TestCase[]
+  comments    Comment[]
+  events      RoomEvent[]
+  invites     RoomInvite[]
+  executions  Execution[]
+  auditEvents AuditEvent[]
+  problem     Json?
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model RoomMember {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  role      RoomRole @default(EDITOR)
+  joinedAt  DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  roomId    String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  files     File[]
+  @@index([roomId])
+}
+
+model File {
+  id               String          @id @default(cuid())
+  projectId        String
+  name             String
+  path             String
+  language         String
+  content          String          @db.Text
+  yState           Bytes?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentUpdates  DocumentUpdate[]
+  comments         Comment[]
+  executions       Execution[]
+  tests            TestCase[]
+  @@unique([projectId, path])
+  @@index([projectId])
+}
+
+model DocumentUpdate {
+  id         String   @id @default(cuid())
+  fileId     String
+  userId     String
+  update     Bytes
+  snapshot   String   @db.Text
+  createdAt  DateTime @default(now())
+  file       File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([fileId, createdAt])
+}
+
+model Execution {
+  id           String          @id @default(cuid())
+  roomId       String
+  fileId       String?
+  userId       String
+  language     String
+  source       String          @db.Text
+  stdin        String?         @db.Text
+  status       ExecutionStatus @default(QUEUED)
+  stdout       String?         @db.Text
+  stderr       String?         @db.Text
+  exitCode     Int?
+  durationMs   Int?
+  results      Json?
+  retryCount   Int             @default(0)
+  failureReason String?
+  createdAt    DateTime        @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  room         Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  file         File?           @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([roomId, createdAt])
+  @@index([status])
+}
+
+model TestCase {
+  id         String   @id @default(cuid())
+  roomId     String
+  fileId     String?
+  name       String
+  input      String   @db.Text
+  expected   String   @db.Text
+  hidden     Boolean  @default(false)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  file       File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  @@index([roomId, order])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  roomId    String
+  fileId    String?
+  userId    String
+  line      Int
+  content   String   @db.Text
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  file      File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([fileId, createdAt])
+}
+
+model RoomEvent {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String?
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([roomId, createdAt])
+}
+
+model RoomInvite {
+  id          String   @id @default(cuid())
+  roomId      String
+  createdById String
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  maxUses     Int      @default(10)
+  uses        Int      @default(0)
+  createdAt   DateTime @default(now())
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  @@index([roomId])
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  roomId    String?
+  action    String
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  room      Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+  @@index([roomId, createdAt])
+}
