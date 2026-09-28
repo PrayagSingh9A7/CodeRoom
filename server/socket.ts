@@ -7,6 +7,7 @@ import { newRedisConnection } from './redis';
 import { getUserFromCookieHeader } from './auth';
 import { getMembership } from './permissions';
 import { withDistributedLock } from './locks';
+import { verifySocketToken } from './socket-auth';
 
 function b64(bytes: Uint8Array | Buffer) {
   return Buffer.from(bytes).toString('base64');
@@ -35,16 +36,30 @@ export async function attachSocketServer(httpServer: HttpServer) {
     // Single-instance mode still works without the Redis adapter.
   }
 
-  io.use(async (socket, next) => {
-    try {
-      const user = await getUserFromCookieHeader(socket.handshake.headers.cookie);
-      if (!user) return next(new Error('Unauthorized'));
-      socket.data.user = { id: user.id, name: user.name, email: user.email };
-      next();
-    } catch {
-      next(new Error('Unauthorized'));
-    }
-  });
+  io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+
+  if (typeof token !== 'string' || !token) {
+    console.error('❌ Socket authentication failed: token missing');
+    return next(new Error('Unauthorized'));
+  }
+
+  try {
+    const payload = verifySocketToken(token);
+
+    socket.data.userId = payload.sub;
+    (socket as any).user = { id: payload.sub };
+
+    console.log('✅ Socket authenticated:', payload.sub);
+    return next();
+  } catch (error) {
+    console.error(
+      '❌ Socket authentication failed:',
+      error instanceof Error ? error.message : error
+    );
+    return next(new Error('Unauthorized'));
+  }
+});
 
   io.on('connection', socket => {
     const user = socket.data.user as { id: string; name: string; email: string };

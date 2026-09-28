@@ -11,6 +11,7 @@ import { executionQueue } from './queue';
 import { canEdit, canManageRoom, canManageTests, canRun, getMembership } from './permissions';
 import { createStateFromText } from './yjs';
 import { PROBLEM_TEMPLATES } from '../lib/problems';
+import { createSocketToken } from './socket-auth';
 
 const router = Router();
 
@@ -97,6 +98,17 @@ router.post('/auth/logout', requireUser, async (req, res) => {
 router.get('/auth/me', requireUser, async (_req, res) => {
   const user = res.locals.user;
   res.json({ user: { id: user.id, name: user.name, email: user.email } });
+});
+
+router.post('/auth/socket-token', requireUser, async (_req, res) => {
+  const token = createSocketToken(res.locals.user.id);
+
+  res.setHeader(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
+  );
+
+  res.json({ token });
 });
 
 router.patch('/auth/profile', requireUser, async (req, res) => {

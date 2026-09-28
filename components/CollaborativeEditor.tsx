@@ -178,6 +178,11 @@ export default function CollaborativeEditor({
       return;
     }
 
+    let cancelled = false;
+    let socket: Socket | null = null;
+    let doc: Y.Doc | null = null;
+    let awareness: Awareness | null = null;
+
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
 
     if (!backendUrl) {
@@ -186,7 +191,9 @@ export default function CollaborativeEditor({
           'Add it to Vercel Production environment variables.'
       );
       onConnectionRef.current?.(false);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     console.log(
@@ -194,283 +201,328 @@ export default function CollaborativeEditor({
       backendUrl
     );
 
-    const doc = new Y.Doc();
+    (async () => {
+      try {
+        const tokenResponse = await fetch('/api/auth/socket-token', {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-    try {
-      Y.applyUpdate(doc, fromBase64(state.yState));
-    } catch (error) {
-      console.error(
-        '❌ Failed to apply initial Yjs state:',
-        error
-      );
-
-      doc.destroy();
-      return;
-    }
-
-    const yText = doc.getText('content');
-
-    if (yText.length === 0 && state.text) {
-      yText.insert(0, state.text);
-    }
-
-    const awareness = new Awareness(doc);
-
-    awareness.setLocalStateField('user', {
-      name: user.name,
-      color:
-        colorPalette[
-          user.name.charCodeAt(0) % colorPalette.length
-        ],
-    });
-
-    const socket = io(backendUrl, {
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-      withCredentials: true,
-
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-
-      timeout: 10000,
-    });
-
-    socketRef.current = socket;
-    docRef.current = doc;
-    awarenessRef.current = awareness;
-
-    onSocketRef.current?.(socket);
-
-    setDocReady(true);
-
-    /**
-     * Socket connected
-     */
-    socket.on('connect', () => {
-      console.log(
-        '✅ CodeRoom socket connected:',
-        socket.id
-      );
-
-      onConnectionRef.current?.(true);
-
-      socket.emit('room:join', {
-        roomId,
-      });
-
-      socket.emit('file:join', {
-        fileId: file.id,
-      });
-
-      console.log('📡 Joined room/file:', {
-        roomId,
-        fileId: file.id,
-      });
-    });
-
-    /**
-     * Socket connection error
-     */
-   socket.on('connect_error', (error) => {
-  console.error(
-    '❌ CodeRoom socket connect_error:',
-    {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-    }
-  );
-
-  onConnectionRef.current?.(false);
-});
-
-    /**
-     * Socket disconnected
-     */
-    socket.on('disconnect', (reason) => {
-      console.warn(
-        '⚠️ CodeRoom socket disconnected:',
-        reason
-      );
-
-      onConnectionRef.current?.(false);
-    });
-
-    /**
-     * Socket reconnecting
-     */
-    socket.io.on('reconnect_attempt', (attempt) => {
-      console.warn(
-        `🔄 CodeRoom socket reconnect attempt #${attempt}`
-      );
-    });
-
-    socket.io.on('reconnect', (attempt) => {
-      console.log(
-        `✅ CodeRoom socket reconnected after ${attempt} attempt(s)`
-      );
-    });
-
-    socket.io.on('reconnect_error', (error) => {
-      console.error(
-        '❌ CodeRoom socket reconnect_error:',
-        error
-      );
-    });
-
-    socket.io.on('reconnect_failed', () => {
-      console.error(
-        '❌ CodeRoom socket reconnect_failed'
-      );
-    });
-
-    /**
-     * Initial shared file state from server
-     */
-    socket.on(
-      'file:sync',
-      ({ state: nextState }: { state: string }) => {
-        try {
-          Y.applyUpdate(
-            doc,
-            fromBase64(nextState),
-            'remote'
-          );
-        } catch (error) {
-          console.error(
-            '❌ file:sync failed:',
-            error
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          throw new Error(
+            `Socket token request failed: ${tokenResponse.status} ${errorText}`
           );
         }
-      }
-    );
 
-    /**
-     * Remote text update
-     */
-    socket.on(
-      'file:update',
-      ({ update }: { update: string }) => {
+        const tokenJson = await tokenResponse.json();
+        const token = tokenJson?.token;
+
+        if (typeof token !== 'string' || !token) {
+          throw new Error('Socket token missing from server response.');
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        doc = new Y.Doc();
+
         try {
-          Y.applyUpdate(
-            doc,
-            fromBase64(update),
-            'remote'
-          );
+          Y.applyUpdate(doc, fromBase64(state.yState));
         } catch (error) {
           console.error(
-            '❌ file:update failed:',
+            '❌ Failed to apply initial Yjs state:',
             error
           );
-        }
-      }
-    );
 
-    /**
-     * Remote awareness/cursor update
-     */
-    socket.on(
-      'file:awareness',
-      ({ update }: { update: string }) => {
-        try {
-          applyAwarenessUpdate(
-            awareness,
-            fromBase64(update),
-            'remote'
+          doc.destroy();
+          doc = null;
+          return;
+        }
+
+        const yText = doc.getText('content');
+
+        if (yText.length === 0 && state.text) {
+          yText.insert(0, state.text);
+        }
+
+        awareness = new Awareness(doc);
+
+        awareness.setLocalStateField('user', {
+          name: user.name,
+          color:
+            colorPalette[
+              user.name.charCodeAt(0) % colorPalette.length
+            ],
+        });
+
+        socket = io(backendUrl, {
+          path: '/socket.io',
+          transports: ['websocket', 'polling'],
+          auth: { token },
+
+          reconnection: true,
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+
+          timeout: 10000,
+        });
+
+        socketRef.current = socket;
+        docRef.current = doc;
+        awarenessRef.current = awareness;
+
+        onSocketRef.current?.(socket);
+
+        setDocReady(true);
+
+        /**
+         * Socket connected
+         */
+        socket.on('connect', () => {
+          console.log(
+            '✅ CodeRoom socket connected:',
+            socket?.id
           );
-        } catch (error) {
+
+          onConnectionRef.current?.(true);
+
+          socket?.emit('room:join', {
+            roomId,
+          });
+
+          socket?.emit('file:join', {
+            fileId: file.id,
+          });
+
+          console.log('📡 Joined room/file:', {
+            roomId,
+            fileId: file.id,
+          });
+        });
+
+        /**
+         * Socket connection error
+         */
+        socket.on('connect_error', (error) => {
           console.error(
-            '❌ file:awareness failed:',
+            '❌ CodeRoom socket connect_error:',
+            {
+              message: error.message,
+              name: error.name,
+              stack: error.stack,
+            }
+          );
+
+          onConnectionRef.current?.(false);
+        });
+
+        /**
+         * Socket disconnected
+         */
+        socket.on('disconnect', (reason) => {
+          console.warn(
+            '⚠️ CodeRoom socket disconnected:',
+            reason
+          );
+
+          onConnectionRef.current?.(false);
+        });
+
+        /**
+         * Socket reconnecting
+         */
+        socket.io.on('reconnect_attempt', (attempt) => {
+          console.warn(
+            `🔄 CodeRoom socket reconnect attempt #${attempt}`
+          );
+        });
+
+        socket.io.on('reconnect', (attempt) => {
+          console.log(
+            `✅ CodeRoom socket reconnected after ${attempt} attempt(s)`
+          );
+        });
+
+        socket.io.on('reconnect_error', (error) => {
+          console.error(
+            '❌ CodeRoom socket reconnect_error:',
             error
           );
-        }
-      }
-    );
+        });
 
-    /**
-     * Local Yjs changes → Socket.IO
-     */
-    const updateHandler = (
-      update: Uint8Array,
-      origin: unknown
-    ) => {
-      if (
-        origin === 'remote' ||
-        !canEdit ||
-        !readyRef.current
-      ) {
-        return;
-      }
+        socket.io.on('reconnect_failed', () => {
+          console.error(
+            '❌ CodeRoom socket reconnect_failed'
+          );
+        });
 
-      pendingUpdates.current.push(update);
+        /**
+         * Initial shared file state from server
+         */
+        socket.on(
+          'file:sync',
+          ({ state: nextState }: { state: string }) => {
+            try {
+              Y.applyUpdate(
+                doc!,
+                fromBase64(nextState),
+                'remote'
+              );
+            } catch (error) {
+              console.error(
+                '❌ file:sync failed:',
+                error
+              );
+            }
+          }
+        );
 
-      if (!flushTimer.current) {
-        flushTimer.current = setTimeout(() => {
-          flushTimer.current = null;
+        /**
+         * Remote text update
+         */
+        socket.on(
+          'file:update',
+          ({ update }: { update: string }) => {
+            try {
+              Y.applyUpdate(
+                doc!,
+                fromBase64(update),
+                'remote'
+              );
+            } catch (error) {
+              console.error(
+                '❌ file:update failed:',
+                error
+              );
+            }
+          }
+        );
 
+        /**
+         * Remote awareness/cursor update
+         */
+        socket.on(
+          'file:awareness',
+          ({ update }: { update: string }) => {
+            try {
+              applyAwarenessUpdate(
+                awareness!,
+                fromBase64(update),
+                'remote'
+              );
+            } catch (error) {
+              console.error(
+                '❌ file:awareness failed:',
+                error
+              );
+            }
+          }
+        );
+
+        /**
+         * Local Yjs changes → Socket.IO
+         */
+        const updateHandler = (
+          update: Uint8Array,
+          origin: unknown
+        ) => {
           if (
-            pendingUpdates.current.length === 0
+            origin === 'remote' ||
+            !canEdit ||
+            !readyRef.current
           ) {
             return;
           }
 
-          const merged = Y.mergeUpdates(
-            pendingUpdates.current
-          );
+          pendingUpdates.current.push(update);
 
-          pendingUpdates.current = [];
+          if (!flushTimer.current) {
+            flushTimer.current = setTimeout(() => {
+              flushTimer.current = null;
 
-          socket.emit('file:update', {
+              if (
+                pendingUpdates.current.length === 0
+              ) {
+                return;
+              }
+
+              const merged = Y.mergeUpdates(
+                pendingUpdates.current
+              );
+
+              pendingUpdates.current = [];
+
+              socket?.emit('file:update', {
+                fileId: file.id,
+                update: toBase64(merged),
+              });
+            }, 80);
+          }
+        };
+
+        doc.on('update', updateHandler);
+
+        /**
+         * Local awareness changes → Socket.IO
+         */
+        const awarenessHandler = ({
+          added,
+          updated,
+          removed,
+        }: {
+          added: number[];
+          updated: number[];
+          removed: number[];
+        }) => {
+          const ids = [
+            ...added,
+            ...updated,
+            ...removed,
+          ];
+
+          if (!ids.length) {
+            return;
+          }
+
+          socket?.emit('file:awareness', {
             fileId: file.id,
-            update: toBase64(merged),
+            update: toBase64(
+              encodeAwarenessUpdate(
+                awareness!,
+                ids
+              )
+            ),
           });
-        }, 80);
+        };
+
+        awareness.on('update', awarenessHandler);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(
+          '❌ CodeRoom socket initialization failed:',
+          error
+        );
+
+        onConnectionRef.current?.(false);
       }
-    };
-
-    doc.on('update', updateHandler);
-
-    /**
-     * Local awareness changes → Socket.IO
-     */
-    const awarenessHandler = ({
-      added,
-      updated,
-      removed,
-    }: {
-      added: number[];
-      updated: number[];
-      removed: number[];
-    }) => {
-      const ids = [
-        ...added,
-        ...updated,
-        ...removed,
-      ];
-
-      if (!ids.length) {
-        return;
-      }
-
-      socket.emit('file:awareness', {
-        fileId: file.id,
-        update: toBase64(
-          encodeAwarenessUpdate(
-            awareness,
-            ids
-          )
-        ),
-      });
-    };
-
-    awareness.on('update', awarenessHandler);
+    })();
 
     /**
      * Cleanup
      */
     return () => {
+      cancelled = true;
+
       console.log(
         '🧹 Cleaning up CodeRoom socket'
       );
@@ -484,22 +536,11 @@ export default function CollaborativeEditor({
 
       pendingUpdates.current = [];
 
-      doc.off(
-        'update',
-        updateHandler
-      );
+      socket?.removeAllListeners();
+      socket?.disconnect();
 
-      awareness.off(
-        'update',
-        awarenessHandler
-      );
-
-      socket.removeAllListeners();
-
-      socket.disconnect();
-
-      awareness.destroy();
-      doc.destroy();
+      awareness?.destroy();
+      doc?.destroy();
 
       onSocketRef.current?.(null);
       onConnectionRef.current?.(false);
