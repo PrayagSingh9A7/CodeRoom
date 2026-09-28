@@ -1,312 +1,594 @@
 
+# ⚡ CodeRoom
 
+<p align="center">
+  <b>Collaborative Coding & Cloud Execution Platform</b>
+  <br/>
+  Real-time pair programming, technical interviews, challenge evaluation, and isolated code execution — in one engineering-focused workspace.
+</p>
 
-CodeRoom
-<p align="center"> <strong>Collaborative coding, real-time pair programming, and isolated cloud execution — built as a systems-focused engineering project.</strong> </p>
+<p align="center">
+  <a href="https://github.com/PrayagSingh9A7/CodeRoom">
+    <img src="https://img.shields.io/badge/GitHub-CodeRoom-181717?style=for-the-badge&logo=github" alt="GitHub"/>
+  </a>
+  <img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-16-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
+  <img src="https://img.shields.io/badge/Docker-Isolated%20Execution-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
+</p>
 
-<p align="center"> <a href="https://github.com/PrayagSingh9A7/CodeRoom"> <img src="https://img.shields.io/github/stars/PrayagSingh9A7/CodeRoom?style=flat-square" alt="GitHub Stars"> </a> <a href="https://github.com/PrayagSingh9A7/CodeRoom/network/members"> <img src="https://img.shields.io/github/forks/PrayagSingh9A7/CodeRoom?style=flat-square" alt="GitHub Forks"> </a> <img src="https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js" alt="Next.js"> <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"> <img src="https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL"> <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white" alt="Redis"> <img src="https://img.shields.io/badge/Docker-Sandbox-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"> </p>
+<p align="center">
+  <a href="#-overview">Overview</a> •
+  <a href="#-key-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-execution-flow">Execution Flow</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-local-development">Local Setup</a> •
+  <a href="#-roadmap">Roadmap</a>
+</p>
 
-<p align="center"> <a href="#overview">Overview</a> · <a href="#key-capabilities">Capabilities</a> · <a href="#architecture">Architecture</a> · <a href="#tech-stack">Tech Stack</a> · <a href="#local-development">Run Locally</a> · <a href="#project-structure">Structure</a> </p>
+---
 
-Overview
-CodeRoom is a collaborative coding workspace designed for pair programming, technical interviews, and team coding sessions.
+## 🚀 Overview
 
-The project combines three engineering-heavy problems in one product:
+**CodeRoom** is a collaborative coding platform built for:
 
-Real-time collaboration — multiple users can work in the same coding session with shared editor state, presence, and cursor awareness.
+- 👨‍💻 Pair programming
+- 🎯 Technical interviews
+- 👥 Team coding sessions
+- 🧪 Coding challenge evaluation
+- 🔁 Replayable coding sessions
 
-Asynchronous code execution — submitted code is processed through a queue instead of running directly inside the web server.
+Instead of treating coding as a simple **editor + API + database** application, CodeRoom is designed around three separate engineering concerns:
 
-Isolated execution — untrusted source code is executed inside disposable Docker sandboxes with resource and network restrictions.
+> **Real-time collaboration + asynchronous execution + isolated code sandboxes**
 
-That makes CodeRoom more than a CRUD application: the product surface is a collaborative coding room, while the backend is responsible for synchronization, persistence, queuing, sandboxing, challenge evaluation, and session history.
+The result is a workspace where multiple users can work on the same coding session, solve structured challenges, run their code against public and hidden tests, and review the session afterward.
 
-Core idea: keep the control plane, collaboration path, and execution path separate so the system can evolve without turning the web server into the execution engine.
+---
 
-Key Capabilities
-⚡ Real-Time Collaborative Editor
-Shared coding workspace for multiple participants
+## ✨ Key Features
 
-Live presence and cursor awareness
+### ⚡ Real-Time Collaborative Coding
 
-Collaborative file editing
+CodeRoom allows multiple participants to work inside the same room.
 
-Separate documentation and solution files
+- Shared code editor
+- Real-time document synchronization
+- Live collaborator presence
+- Cursor awareness
+- Multi-file workspace
+- Role-aware room access
+- Collaborative interview workflow
 
-Session-based room workflow
+### 🧩 Coding Challenge System
 
-🧪 Challenge & Test Engine
-Curated coding challenges
+The platform includes a structured challenge experience inspired by modern coding platforms.
 
-Problem statements, examples, constraints, and starter code
+Each challenge can contain:
 
-Public and hidden test cases
+- Problem statement
+- Difficulty
+- Tags
+- Examples
+- Constraints
+- Starter code
+- Public test cases
+- Hidden test cases
+- Custom challenges
 
-Custom challenge creation
+Example:
 
-Challenge-specific test management
+```text
+Challenge
+   ├── Problem Statement
+   ├── Difficulty
+   ├── Constraints
+   ├── Examples
+   ├── Starter Code
+   ├── Public Tests
+   └── Hidden Tests
+````
 
-Test result reporting with expected/output comparison
+### 🧪 Test Execution
 
-🐳 Isolated Code Execution
-Code execution is intentionally kept outside the main application process.
+Users can run their solution directly from the workspace.
 
-The execution path uses:
+The system evaluates:
 
-Web App
+* Compilation/runtime status
+* Public test cases
+* Hidden test cases
+* Expected output
+* Actual output
+* Execution failures
+* Recent execution history
+
+Example result:
+
+```text
+✅ Accepted
+
+3 / 3 tests passed
+
+Overlapping
+Expected → [[1, 6], [8, 10], [15, 18]]
+Output   → [[1, 6], [8, 10], [15, 18]]
+
+Touching
+Expected → [[1, 5]]
+Output   → [[1, 5]]
+
+Contained
+Hidden Test
+✅ Passed
+```
+
+### 🐳 Isolated Code Execution
+
+One of the core engineering ideas behind CodeRoom is that **user-submitted code should not execute directly inside the application server**.
+
+Instead:
+
+```text
+User Code
    ↓
 Execution Request
    ↓
-Queue
+Redis / Queue
    ↓
 Executor Worker
    ↓
-Disposable Docker Sandbox
+Docker Sandbox
    ↓
 Test Evaluation
    ↓
-Result
+Execution Result
    ↓
-Room UI
-The runner applies execution controls such as:
+CodeRoom UI
+```
 
-CPU limits
+The execution environment is designed around controls such as:
 
-Memory limits
+* CPU limits
+* Memory limits
+* Process limits
+* Execution timeouts
+* Network restrictions
+* Source-size limits
+* Disposable execution environments
 
-Process limits
+This creates a clear boundary between the **application layer** and the **untrusted execution layer**.
 
-Network restrictions
+---
 
-Execution timeouts
+## 🏗️ Architecture
 
-Source-size limits
+CodeRoom separates the major responsibilities instead of placing everything inside one process.
 
-This architecture helps keep arbitrary user code away from the primary application process.
+```text
+                         ┌─────────────────────┐
+                         │      Next.js UI     │
+                         │                     │
+                         │  Dashboard          │
+                         │  Room Workspace     │
+                         │  Challenge Panel    │
+                         │  Test Console       │
+                         │  Replay             │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │    API / Control    │
+                         │                     │
+                         │ Auth                │
+                         │ Rooms               │
+                         │ Files               │
+                         │ Challenges          │
+                         │ Permissions         │
+                         │ Run Requests        │
+                         └──────┬───────┬──────┘
+                                │       │
+                    ┌───────────┘       └────────────┐
+                    ▼                                ▼
+             ┌─────────────┐                  ┌─────────────┐
+             │    Redis    │                  │ PostgreSQL  │
+             │             │                  │             │
+             │ Queue       │                  │ Users       │
+             │ Jobs        │                  │ Rooms       │
+             │ Fast State  │                  │ Files       │
+             └──────┬──────┘                  │ Challenges  │
+                    │                         │ Test Cases  │
+                    ▼                         │ Run History │
+             ┌─────────────┐                  └─────────────┘
+             │   Executor  │
+             │    Worker   │
+             └──────┬──────┘
+                    │
+                    ▼
+             ┌─────────────┐
+             │    Docker   │
+             │   Sandbox   │
+             │             │
+             │ Restricted  │
+             │ Execution   │
+             └─────────────┘
+```
 
-🔁 Replayable Sessions
-CodeRoom records the session timeline so a completed room can be reviewed afterward.
+### Core separation
 
-This enables workflows such as:
+**Web / Control Plane**
 
-interview review
+Handles normal application traffic:
 
-pair-programming retrospectives
+* Authentication
+* Rooms
+* Files
+* Challenges
+* Permissions
+* Persistence
+* Run creation
 
-debugging analysis
+**Collaboration Plane**
 
-replaying the evolution of a solution
+Handles low-latency shared editing:
 
-👥 Room-Based Collaboration
-Rooms support a role-aware collaborative workflow with concepts such as:
+* Shared document state
+* Presence
+* Cursor awareness
+* Concurrent editing
 
-Owner
+**Execution Plane**
 
-Editor
+Handles expensive and untrusted workloads:
 
-Viewer
+* Queue consumption
+* Sandbox preparation
+* Code execution
+* Test evaluation
+* Result persistence
 
-Interviewer
+---
 
-collaborator invitations
+## 🔄 Execution Flow
 
-room actions
+A typical "Run Tests" request follows this lifecycle:
 
-session-specific challenge state
-
-Why CodeRoom?
-Most coding projects stop at:
-
-Editor → API → Database
-CodeRoom deliberately goes further:
-
-                     ┌───────────────────┐
-                     │     Next.js UI    │
-                     │ Workspace / Room  │
-                     └─────────┬─────────┘
-                               │
-                     ┌─────────▼─────────┐
-                     │    Control/API    │
-                     │ Auth / Rooms / DB │
-                     └──────┬─────┬──────┘
-                            │     │
-                  ┌─────────▼┐   │
-                  │   Redis  │   │
-                  │ Queue    │   │
-                  └────┬─────┘   │
-                       │          │
-                ┌──────▼──────┐   │
-                │   Executor  │   │
-                │    Worker   │   │
-                └──────┬──────┘   │
-                       │          │
-                ┌──────▼──────┐   │
-                │   Docker    │   │
-                │   Sandbox   │   │
-                └─────────────┘   │
-                                  │
-                           ┌──────▼──────┐
-                           │ PostgreSQL  │
-                           │ Persistence │
-                           └─────────────┘
-The interesting engineering work is in the boundaries between these components.
-
-Architecture
-CodeRoom is organized around distinct responsibilities.
-
-1. Presentation / Workspace Layer
-The Next.js application provides:
-
-authentication flows
-
-dashboard
-
-room UI
-
-collaborative editor
-
-challenge panel
-
-test result console
-
-replay experience
-
-profile/settings surfaces
-
-2. Application / Control Layer
-The server owns application-level state such as:
-
-users and sessions
-
-rooms
-
-files
-
-challenges
-
-tests
-
-permissions
-
-execution requests
-
-run history
-
-3. Collaboration Layer
-The collaboration path is optimized for low-latency shared editing rather than repeatedly saving the entire document through ordinary CRUD requests.
-
-4. Queue / Execution Layer
-Execution requests enter an asynchronous queue.
-
-That separation prevents long-running or expensive execution jobs from blocking ordinary application traffic.
-
-5. Sandbox Layer
-The executor prepares a temporary workspace and runs submitted source inside a constrained Docker environment.
-
-The key design rule is:
-
-Never execute arbitrary user source directly inside the web/API process.
-
-6. Persistence Layer
-PostgreSQL stores durable application state, while Redis supports fast-changing/queued workloads.
-
-Execution Lifecycle
-A typical test run follows this lifecycle:
-
-1. User edits code
-        ↓
-2. User clicks "Run tests"
-        ↓
-3. Server validates the request
-        ↓
-4. Execution job is queued
-        ↓
-5. Worker picks up the job
-        ↓
+```text
+1. User edits solution
+        │
+        ▼
+2. Clicks "Run Tests"
+        │
+        ▼
+3. Server validates request
+        │
+        ▼
+4. Execution job enters queue
+        │
+        ▼
+5. Executor worker consumes job
+        │
+        ▼
 6. Temporary sandbox is created
-        ↓
-7. Source + test input are prepared
-        ↓
-8. Code executes under limits
-        ↓
-9. Output is collected
-        ↓
+        │
+        ▼
+7. Source + test data are prepared
+        │
+        ▼
+8. Code executes with resource limits
+        │
+        ▼
+9. stdout / stderr are collected
+        │
+        ▼
 10. Tests are evaluated
-        ↓
+        │
+        ▼
 11. Result is persisted
-        ↓
-12. UI renders status, output and failures
-This is the core systems workflow behind CodeRoom.
+        │
+        ▼
+12. UI displays test results
+```
 
-Tech Stack
-Layer	Technology
-Frontend	Next.js, React, TypeScript
-Editor	Monaco Editor
-Collaboration	WebSockets / Yjs-based shared state
-Backend	Node.js / TypeScript
-API	HTTP + real-time communication
-Database	PostgreSQL
-ORM	Prisma
-Queue / Cache	Redis + BullMQ
-Execution	Docker sandboxes
-Styling	Tailwind CSS
-Tooling	npm, Git, Docker Compose
-Project Structure
+This prevents code execution from becoming normal synchronous application work.
+
+---
+
+## 🔐 Security Model
+
+Code execution is the most security-sensitive component of CodeRoom.
+
+The design principle is:
+
+> **Never execute arbitrary user source directly inside the web/API process.**
+
+Instead:
+
+```text
+                 UNTRUSTED SOURCE
+                        │
+                        ▼
+                   Execution Queue
+                        │
+                        ▼
+                  Executor Worker
+                        │
+                        ▼
+                Docker Sandbox
+                        │
+          ┌─────────────┼─────────────┐
+          │             │             │
+          ▼             ▼             ▼
+       CPU Limit     Memory Limit   Process Limit
+          │             │             │
+          └─────────────┼─────────────┘
+                        ▼
+                  Timeout Control
+                        │
+                        ▼
+                  Test Evaluation
+                        │
+                        ▼
+                    Result
+```
+
+Production hardening areas include:
+
+* Network isolation
+* Capability restrictions
+* Resource quotas
+* Process limits
+* Execution timeouts
+* Input/source size limits
+* Rate limiting
+* Executor monitoring
+* Separate execution infrastructure
+
+---
+
+## 🎯 Product Workflow
+
+### Technical Interview
+
+```text
+Interviewer
+     │
+     ▼
+Creates Room
+     │
+     ▼
+Selects Challenge
+     │
+     ▼
+Candidate Joins
+     │
+     ▼
+Shared Coding Workspace
+     │
+     ▼
+Candidate Writes Solution
+     │
+     ▼
+Run Public + Hidden Tests
+     │
+     ▼
+Review Results
+     │
+     ▼
+Replay Session
+```
+
+### Pair Programming
+
+```text
+Developer A ───────┐
+                   │
+                   ▼
+             Shared Room
+                   ▲
+                   │
+Developer B ───────┘
+                   │
+                   ▼
+             Shared Editor
+                   │
+                   ▼
+              Run Tests
+                   │
+                   ▼
+             Review Session
+```
+
+---
+
+## 🔁 Session Replay
+
+CodeRoom includes a replay-oriented session workflow.
+
+A completed session can be reviewed to understand how the solution evolved over time.
+
+Useful for:
+
+* Technical interview review
+* Pair-programming retrospectives
+* Debugging sessions
+* Understanding implementation decisions
+* Reviewing coding behavior
+
+The replay model turns the coding session into more than a final source snapshot.
+
+---
+
+## 👥 Room Roles
+
+The room model is designed around collaborative access rather than a single-user workspace.
+
+Supported concepts include:
+
+| Role            | Purpose                             |
+| --------------- | ----------------------------------- |
+| **Owner**       | Full room control                   |
+| **Interviewer** | Interview-oriented room interaction |
+| **Editor**      | Can collaborate on the workspace    |
+| **Viewer**      | Read-only participation             |
+
+Rooms can also support collaborator invitations and room-level actions.
+
+---
+
+## 🧱 Workspace Model
+
+A room separates executable code from documentation.
+
+```text
+Workspace
+│
+├── README.md
+│   └── Notes / context / instructions
+│
+└── main.py
+    └── Executable solution
+```
+
+This keeps documentation and executable source separate instead of mixing them into a single editor state.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer                  | Technology                          |
+| ---------------------- | ----------------------------------- |
+| **Frontend**           | Next.js, React, TypeScript          |
+| **Editor**             | Monaco Editor                       |
+| **Real-Time Sync**     | WebSockets, Yjs-based collaboration |
+| **Backend**            | Node.js, TypeScript                 |
+| **API**                | HTTP + real-time communication      |
+| **Database**           | PostgreSQL                          |
+| **ORM**                | Prisma                              |
+| **Queue / Fast State** | Redis + BullMQ                      |
+| **Execution**          | Docker                              |
+| **Styling**            | Tailwind CSS                        |
+| **Infrastructure**     | Docker Compose                      |
+| **Tooling**            | Git, npm, VS Code                   |
+
+---
+
+## 📁 Project Structure
+
+```text
 CodeRoom/
-├── app/                 # Next.js routes and application UI
-├── components/          # Reusable UI and collaborative editor components
-├── docs/                # Project documentation
-├── executor/            # Queue worker and sandbox execution logic
-├── lib/                 # Shared utilities and application logic
-├── prisma/              # Database schema and Prisma configuration
-├── scripts/             # Development / utility scripts
-├── server/              # API, auth, room and persistence services
-├── docker-compose.yml   # Local PostgreSQL + Redis services
-├── package.json         # Scripts and dependencies
-├── .env.example         # Environment variable template
+│
+├── app/
+│   └── Next.js application routes and pages
+│
+├── components/
+│   └── Shared UI and collaborative editor components
+│
+├── docs/
+│   └── Project documentation
+│
+├── executor/
+│   └── Queue worker and sandbox execution logic
+│
+├── lib/
+│   └── Shared utilities and application logic
+│
+├── prisma/
+│   └── Database schema and Prisma configuration
+│
+├── scripts/
+│   └── Development / utility scripts
+│
+├── server/
+│   └── API, authentication, rooms and persistence
+│
+├── docker-compose.yml
+│   └── Local PostgreSQL + Redis infrastructure
+│
+├── package.json
+│   └── Dependencies and scripts
+│
+├── .env.example
+│   └── Environment configuration template
+│
 └── README.md
-Local Development
-Prerequisites
-Make sure the following are installed:
+```
 
-Node.js 20+
+---
 
-npm
+## 💻 Local Development
 
-Docker Desktop
+### Prerequisites
 
-Git
+Make sure you have:
 
-1. Clone
+* **Node.js 20+**
+* **npm**
+* **Docker Desktop**
+* **Git**
+
+### 1. Clone the repository
+
+```bash
 git clone https://github.com/PrayagSingh9A7/CodeRoom.git
 cd CodeRoom
-2. Install dependencies
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
-3. Configure environment
-Copy the example environment file:
+```
 
-Windows PowerShell
+### 3. Configure environment variables
 
+Copy the example environment file.
+
+#### Windows
+
+```powershell
 Copy-Item .env.example .env
-macOS / Linux
+```
 
+#### macOS / Linux
+
+```bash
 cp .env.example .env
-Update the environment values as needed for your local setup.
+```
 
-4. Start infrastructure
+### 4. Start PostgreSQL and Redis
+
+```bash
 docker compose up -d postgres redis
-5. Initialize the database
+```
+
+### 5. Initialize the database
+
+```bash
 npm run db:push
-6. Start the application
+```
+
+### 6. Start CodeRoom
+
+```bash
 npm run dev
-The development server runs at:
+```
 
+Open:
+
+```text
 http://localhost:3000
-Environment Variables
-The repository includes an .env.example file for local configuration.
+```
 
-Typical configuration includes:
+---
 
+## ⚙️ Environment Variables
+
+Example configuration:
+
+```env
 NODE_ENV=development
 PORT=3000
 APP_URL=http://localhost:3000
@@ -320,215 +602,317 @@ SESSION_DAYS=14
 EXECUTION_TIMEOUT_MS=5000
 IMAGE_PULL_TIMEOUT_MS=300000
 MAX_SOURCE_BYTES=600000
-Security note
-Never commit a real .env file, production database credentials, private tokens, or other secrets to the repository.
+```
 
-Design Decisions
-Why Redis?
-Redis provides a fast coordination layer for queue-backed execution and other short-lived system state.
+### 🔒 Important
 
-Why a queue?
-Code execution is inherently unpredictable. A queue makes execution asynchronous and prevents long-running jobs from becoming normal request/response work.
+Do **not** commit:
 
-Why Docker sandboxes?
-User-submitted code should not execute with the same privileges as the application server. Containers provide an explicit isolation boundary and make resource limits enforceable.
+```text
+.env
+```
 
-Why PostgreSQL?
-Room state, users, files, challenges, test cases, permissions, and execution history are relational entities with clear consistency requirements.
+to GitHub.
 
-Why a collaborative data model?
-A collaborative editor should synchronize changes rather than constantly replacing the entire document. This makes concurrent editing feel immediate and provides a foundation for presence and replay features.
+Commit:
 
-Example Workflow
-Technical Interview
-Interviewer creates room
-        ↓
-Selects coding challenge
-        ↓
-Candidate joins room
-        ↓
-Both see the same workspace
-        ↓
-Candidate writes solution
-        ↓
-Interviewer observes changes live
-        ↓
-Candidate runs tests
-        ↓
-Sandboxed execution returns results
-        ↓
-Session can be replayed afterward
-Pair Programming
-Developer A joins
-        ↕
-Shared editor
-        ↕
-Developer B joins
-        ↓
-Both edit the same workspace
-        ↓
-Run tests collaboratively
-        ↓
-Review the session timeline
-Engineering Highlights
-CodeRoom demonstrates practical engineering concepts across several layers:
+```text
+.env.example
+```
 
-Real-time state synchronization
+instead.
 
-Collaborative editing
+Never expose:
 
-Asynchronous job processing
+* Production database passwords
+* Session secrets
+* API keys
+* Private tokens
+* Cloud credentials
 
-Queue workers
+---
 
-Containerized execution
+## 🧠 Important Engineering Decisions
 
-Resource isolation
+### Why Redis?
 
-Relational data modeling
+Redis provides a fast coordination and queue layer for workloads that should not block normal application requests.
 
-Authentication and authorization
+### Why BullMQ?
 
-Challenge/test orchestration
+Code execution is asynchronous and potentially expensive.
 
-Persistent execution history
+A queue provides:
 
-Session replay
+* Job isolation
+* Worker-based execution
+* Retry possibilities
+* Better concurrency control
+* Separation from normal HTTP traffic
 
-Docker-based local infrastructure
+### Why PostgreSQL?
 
-Separation of web traffic from untrusted workloads
+CodeRoom contains strongly related entities:
 
-Current Scope
-The current repository contains the core collaborative coding workflow:
+```text
+Users
+Rooms
+Files
+Challenges
+Test Cases
+Permissions
+Execution History
+```
 
-authentication
+A relational database provides structured persistence and consistency for these relationships.
 
-room-based workspace
+### Why Docker?
 
-shared editing
+The application must treat submitted source code as **untrusted workload**.
 
-challenge library
+Docker provides a practical isolation boundary for the execution layer and enables resource restrictions around execution.
 
-custom challenges
+### Why Separate the Execution Layer?
 
-public/hidden tests
+A slow or malicious execution job should not consume resources of the main application process.
 
-queued sandbox execution
+Separating execution gives the system a path toward:
 
-test result reporting
+* Independent scaling
+* Dedicated execution workers
+* Failure isolation
+* Resource control
+* Multiple executor hosts
 
-room roles
+---
 
-collaborator invitations
+## 📊 Engineering Concepts Demonstrated
 
-replay timeline
+CodeRoom brings together several backend and systems concepts:
 
-PostgreSQL persistence
+* **Real-time collaboration**
+* **Concurrent state synchronization**
+* **WebSocket communication**
+* **Asynchronous job processing**
+* **Queue-based architecture**
+* **Worker processes**
+* **Container isolation**
+* **Resource limiting**
+* **Relational data modeling**
+* **Authentication & authorization**
+* **Challenge/test orchestration**
+* **Persistent execution history**
+* **Session replay**
+* **Dockerized development infrastructure**
+* **Separation of control and execution workloads**
 
-Redis-backed execution
+---
 
-Docker-based local infrastructure
+## 📸 Screenshots
 
-The project is intentionally structured so additional execution languages, stronger sandbox isolation, production observability, and multi-instance deployment can be added without redesigning the entire application.
+> Add production screenshots here after deployment.
 
-Roadmap
-The architecture leaves room for future improvements such as:
+Recommended screenshots:
 
-Production deployment with separated web/API and executor services
+```text
+1. Landing / Authentication
+2. Dashboard
+3. Collaborative Coding Room
+4. Challenge + Editor + Console
+5. Accepted Test Results
+6. Session Replay
+```
 
-Multi-worker execution scaling
+Example:
 
-Stronger sandbox hardening
+```markdown
+![CodeRoom Workspace](./docs/screenshots/workspace.png)
+```
 
-Artifact/log retention
+---
 
-Execution metrics and observability
+## 🚧 Roadmap
 
-Rate limiting and abuse controls
+### Phase 1 — Core Platform
 
-Autoscaling executor workers
+* [x] Authentication
+* [x] Room-based workspace
+* [x] Collaborative editing
+* [x] Challenge library
+* [x] Public tests
+* [x] Hidden tests
+* [x] Custom challenges
+* [x] Execution queue
+* [x] Docker sandbox
+* [x] Execution results
+* [x] Room roles
+* [x] Collaborator invitations
+* [x] Replay timeline
 
-Multi-region execution strategy
+### Phase 2 — Production Engineering
 
-CI/CD pipeline
+* [ ] Production deployment
+* [ ] Separate API and executor services
+* [ ] Dedicated executor workers
+* [ ] CI/CD pipeline
+* [ ] Automated test suite
+* [ ] Rate limiting
+* [ ] Observability
+* [ ] Structured logging
+* [ ] Metrics and tracing
 
-Automated test suite
+### Phase 3 — Scaling
 
-Public room / interview links
+* [ ] Multiple executor workers
+* [ ] Executor autoscaling
+* [ ] Artifact storage
+* [ ] Execution result retention
+* [ ] Horizontal scaling
+* [ ] Stronger sandbox isolation
+* [ ] Multi-region execution strategy
 
-More execution languages
+---
 
-Security Considerations
-Code execution is the most security-sensitive part of CodeRoom.
+## 🌐 Deployment Architecture
 
-The intended model is:
+The intended production architecture separates the public application from the execution infrastructure.
 
-Untrusted Source
+```text
+                         INTERNET
+                             │
+                             ▼
+                    ┌────────────────┐
+                    │   Next.js App  │
+                    │   Web / UI     │
+                    └───────┬────────┘
+                            │
+                    ┌───────▼────────┐
+                    │   API / Auth   │
+                    └───────┬────────┘
+                            │
+             ┌──────────────┼───────────────┐
+             │              │               │
+             ▼              ▼               ▼
+        PostgreSQL       Redis          Collaboration
+             │              │               │
+             │              ▼               │
+             │         Execution Queue      │
+             │              │               │
+             │              ▼               │
+             │       Executor Workers       │
+             │              │               │
+             │              ▼               │
+             │      Docker Sandboxes        │
+             │                              │
+             └──────────────┬───────────────┘
+                            ▼
+                    Execution Results
+```
+
+This creates a foundation for independently scaling the application and execution workloads.
+
+---
+
+## 🔮 Future Direction
+
+CodeRoom is intentionally structured so the execution layer can evolve independently from the product layer.
+
+Potential future improvements include:
+
+* Multi-language execution
+* Dedicated execution clusters
+* Stronger sandboxing
+* Execution artifact storage
+* Observability dashboards
+* Worker autoscaling
+* Interview analytics
+* Public interview rooms
+* Session analytics
+* Collaborative debugging tools
+
+---
+
+## ⭐ Why This Project?
+
+CodeRoom was built to explore what happens when a coding platform has to solve more than just CRUD.
+
+The interesting part is the combination of:
+
+```text
+Real-Time Systems
+        +
+Distributed Workload Processing
+        +
+Code Execution Isolation
+        +
+Persistent Application State
+```
+
+The product UI is only one part of the system.
+
+The real engineering challenge is making these components work together reliably:
+
+```text
+Collaboration
+      ↓
+Application State
       ↓
 Queue
       ↓
-Isolated Executor
+Workers
       ↓
-Restricted Container
+Sandbox
       ↓
-Timeout / Resource Limits
+Test Evaluation
       ↓
-Result
-Important production hardening areas include:
+Persistent Results
+      ↓
+Replay
+```
 
-never executing arbitrary code inside the API process
+---
 
-disabling unnecessary container capabilities
+## 📌 Repository
 
-restricting network access
+**GitHub:**
+[https://github.com/PrayagSingh9A7/CodeRoom](https://github.com/PrayagSingh9A7/CodeRoom)
 
-enforcing CPU and memory limits
+---
 
-limiting process creation
+## 👨‍💻 Author
 
-enforcing execution timeouts
+### Prayag Singh
 
-limiting source and artifact sizes
+**B.Tech Data Science | Full-Stack & Cloud Engineering**
 
-rate limiting execution requests
+I build full-stack systems with an interest in:
 
-separating execution hosts from the application host
+* Distributed systems
+* Cloud computing
+* Backend engineering
+* Real-time applications
+* Developer tooling
+* System design
 
-monitoring executor failures and abuse
+**GitHub:**
+[https://github.com/PrayagSingh9A7](https://github.com/PrayagSingh9A7)
 
-Screenshots
-Add project screenshots here once the production deployment is live.
+**LinkedIn:**
+[https://www.linkedin.com/in/prayag-singh9/](https://www.linkedin.com/in/prayag-singh9/)
 
-Recommended showcase images:
+**Portfolio:**
+[https://prayag-singh-portfolio.vercel.app/](https://prayag-singh-portfolio.vercel.app/)
 
-Landing / authentication screen
+---
 
-Collaborative coding workspace
+## ⭐ Support
 
-Challenge + editor + test console
+If you find the project interesting, consider giving the repository a **star** ⭐
 
-Accepted test results
+---
 
-Session replay
-
-Dashboard / room management
-
-Repository
-GitHub:
-https://github.com/PrayagSingh9A7/CodeRoom
-
-Author
-Prayag Singh
-B.Tech Data Science student focused on full-stack engineering, cloud computing, distributed systems, and developer tooling.
-
-GitHub: https://github.com/PrayagSingh9A7
-
-LinkedIn: https://www.linkedin.com/in/prayag-singh9/
-
-Portfolio: https://prayag-singh-portfolio.vercel.app/
-
-License
-This project does not currently declare a repository license.
-
-<p align="center"> <strong>CodeRoom — collaborative coding with real-time synchronization and isolated execution.</strong> </p>
+<p align="center">
+  <b>CodeRoom</b>
+  <br/>
+  Collaborative coding • Real-time synchronization • Isolated execution
+</p>
