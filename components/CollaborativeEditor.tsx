@@ -67,7 +67,10 @@ export default function CollaborativeEditor({ file, canEdit, user, roomId, onSel
 
     const awareness = new Awareness(doc);
     awareness.setLocalStateField('user', { name: user.name, color: colorPalette[user.name.charCodeAt(0) % colorPalette.length] });
-    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+    const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+  path: '/socket.io',
+  transports: ['websocket', 'polling'],
+});
     socketRef.current = socket;
     onSocket?.(socket);
     docRef.current = doc;
