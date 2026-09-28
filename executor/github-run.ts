@@ -1,13 +1,15 @@
 import 'dotenv/config';
 import { normalizeOutput, runSandbox, type Test } from './sandbox';
 
-const executionId = process.env.EXECUTION_ID?.trim();
-const apiUrl = process.env.EXECUTOR_API_URL?.trim()?.replace(/\/$/, '');
-const executorSecret = process.env.EXECUTOR_SHARED_SECRET?.trim();
+function requiredEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required.`);
+  return value;
+}
 
-if (!executionId) throw new Error('EXECUTION_ID is required.');
-if (!apiUrl) throw new Error('EXECUTOR_API_URL is required.');
-if (!executorSecret) throw new Error('EXECUTOR_SHARED_SECRET is required.');
+const executionId = requiredEnv('EXECUTION_ID');
+const apiUrl = requiredEnv('EXECUTOR_API_URL').replace(/\/$/, '');
+const executorSecret = requiredEnv('EXECUTOR_SHARED_SECRET');
 
 type ExecutionPayload = {
   executionId: string;
