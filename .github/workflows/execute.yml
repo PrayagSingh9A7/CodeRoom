@@ -1,0 +1,53 @@
+name: CodeRoom Executor
+
+on:
+  workflow_dispatch:
+    inputs:
+      executionId:
+        description: CodeRoom execution ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout CodeRoom
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Execute CodeRoom job
+        env:
+          EXECUTION_ID: ${{ inputs.executionId }}
+          EXECUTOR_API_URL: ${{ secrets.EXECUTOR_API_URL }}
+          EXECUTOR_SHARED_SECRET: ${{ secrets.EXECUTOR_SHARED_SECRET }}
+          EXECUTION_TIMEOUT_MS: 5000
+          IMAGE_PULL_TIMEOUT_MS: 300000
+          MAX_SOURCE_BYTES: 600000
+        run: npx tsx executor/github-run.ts
+
+      - name: Report runner failure
+        if: ${{ failure() }}
+        env:
+          EXECUTION_ID: ${{ inputs.executionId }}
+          EXECUTOR_API_URL: ${{ secrets.EXECUTOR_API_URL }}
+          EXECUTOR_SHARED_SECRET: ${{ secrets.EXECUTOR_SHARED_SECRET }}
+        run: |
+          curl -sS -X POST "${EXECUTOR_API_URL}/api/executor/jobs/${EXECUTION_ID}/result" \
+            -H "Content-Type: application/json" \
+            -H "x-coderoom-executor-secret: ${EXECUTOR_SHARED_SECRET}" \
+            -d '{"status":"FAILED","stdout":"","stderr":"GitHub Actions runner failed before execution completed.","exitCode":null,"durationMs":0,"results":[],"failureReason":"GitHub Actions runner failed before execution completed."}' \
+            || true

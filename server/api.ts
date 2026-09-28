@@ -8,6 +8,7 @@ import { prisma } from './db';
 import { clearSession, createSession, getUserFromRequest, hashPassword, verifyPassword } from './auth';
 import { clientIp, rateLimit } from './security';
 import { executionQueue } from './queue';
+import { newRedisConnection } from './redis';
 import { canEdit, canManageRoom, canManageTests, canRun, getMembership } from './permissions';
 import { createStateFromText } from './yjs';
 import { PROBLEM_TEMPLATES } from '../lib/problems';
@@ -16,6 +17,73 @@ import { createSocketToken } from './socket-auth';
 const router = Router();
 
 router.use(cookieParser());
+
+const executionPublisher = newRedisConnection();
+executionPublisher.on('error', error => {
+  console.error('[api] Execution event publisher error', error);
+});
+
+function requireExecutorSecret(req: Request, res: Response, next: NextFunction) {
+  const expected = process.env.EXECUTOR_SHARED_SECRET?.trim();
+  const received = req.get('x-coderoom-executor-secret')?.trim();
+
+  if (!expected || expected.length < 32) {
+    return res.status(500).json({ error: 'Executor secret is not configured.' });
+  }
+
+  if (!received) {
+    return res.status(401).json({ error: 'Executor authentication required.' });
+  }
+
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const receivedBuffer = Buffer.from(received, 'utf8');
+
+  if (
+    expectedBuffer.length !== receivedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
+  ) {
+    return res.status(401).json({ error: 'Invalid executor credentials.' });
+  }
+
+  return next();
+}
+
+async function dispatchGithubExecution(executionId: string) {
+  const token = process.env.GITHUB_ACTIONS_TOKEN?.trim();
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  const workflow = process.env.GITHUB_WORKFLOW?.trim() || 'execute.yml';
+  const ref = process.env.GITHUB_REF?.trim() || 'main';
+
+  if (!token || !repository) {
+    throw new Error(
+      'GITHUB_ACTIONS_TOKEN and GITHUB_REPOSITORY must be configured for GitHub execution.'
+    );
+  }
+
+  const response = await fetch(
+    `https://api.github.com/repos/${repository}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2026-03-10',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref,
+        inputs: { executionId }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      `GitHub workflow dispatch failed (${response.status}): ${body.slice(0, 800)}`
+    );
+  }
+}
 
 async function requireUser(req: Request, res: Response, next: NextFunction) {
   const user = await getUserFromRequest(req);
@@ -449,24 +517,194 @@ router.post('/rooms/:id/executions', requireUser, roomAccess, async (req, res) =
   if (!canRun(res.locals.membership.role)) return res.status(403).json({ error: 'You cannot run code in this room.' });
   const parsed = z.object({ fileId: z.string().cuid(), stdin: z.string().max(100000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'A valid fileId is required.' });
+  const roomId = String(req.params.id);
   const file = await prisma.file.findUnique({ where: { id: parsed.data.fileId }, include: { project: { select: { roomId: true } } } });
-  if (!file || file.project.roomId !== String(req.params.id)) return res.status(404).json({ error: 'File not found in this room.' });
+  if (!file || file.project.roomId !== roomId) return res.status(404).json({ error: 'File not found in this room.' });
   if (Buffer.byteLength(file.content, 'utf8') > Number(process.env.MAX_SOURCE_BYTES ?? 600000)) return res.status(413).json({ error: 'Source file is too large to execute.' });
-  const tests = await prisma.testCase.findMany({ where: { roomId: String(req.params.id), OR: [{ fileId: file.id }, { fileId: null }] }, orderBy: [{ order: 'asc' }, { createdAt: 'asc' }] });
-  const room = await prisma.room.findUnique({ where: { id: String(req.params.id) }, select: { problem: true } });
+
+  const tests = await prisma.testCase.findMany({
+    where: { roomId, OR: [{ fileId: file.id }, { fileId: null }] },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
+  });
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: { problem: true } });
   const problemTemplateId = (room?.problem as any)?.templateId ?? null;
-  const execution = await prisma.execution.create({ data: { roomId: String(req.params.id), fileId: file.id, userId: res.locals.user.id, language: file.language, source: file.content, stdin: parsed.data.stdin ?? '' } });
-  await executionQueue.add('execute', {
-    executionId: execution.id,
-    roomId: String(req.params.id),
-    language: file.language,
-    source: file.content,
-    stdin: parsed.data.stdin ?? '',
-    problemTemplateId,
-    tests: tests.map(t => ({ id: t.id, name: t.name, input: t.input, expected: t.expected, hidden: t.hidden }))
-  }, { jobId: execution.id });
-  await prisma.roomEvent.create({ data: { roomId: String(req.params.id), userId: res.locals.user.id, type: 'EXECUTION_QUEUED', payload: { executionId: execution.id, fileId: file.id } } });
+
+  const execution = await prisma.execution.create({
+    data: {
+      roomId,
+      fileId: file.id,
+      userId: res.locals.user.id,
+      language: file.language,
+      source: file.content,
+      stdin: parsed.data.stdin ?? ''
+    }
+  });
+
+  await prisma.roomEvent.create({
+    data: {
+      roomId,
+      userId: res.locals.user.id,
+      type: 'EXECUTION_QUEUED',
+      payload: { executionId: execution.id, fileId: file.id }
+    }
+  });
+
+  if (process.env.EXECUTION_MODE === 'github-actions') {
+    try {
+      await dispatchGithubExecution(execution.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to dispatch execution worker.';
+      await prisma.execution.update({
+        where: { id: execution.id },
+        data: { status: 'FAILED', failureReason: message, completedAt: new Date() }
+      });
+      await prisma.roomEvent.create({
+        data: {
+          roomId,
+          userId: null,
+          type: 'EXECUTION_FAILED',
+          payload: { executionId: execution.id, reason: message }
+        }
+      }).catch(() => undefined);
+      return res.status(502).json({ error: 'Failed to start the execution worker.', executionId: execution.id });
+    }
+  } else {
+    await executionQueue.add('execute', {
+      executionId: execution.id,
+      roomId,
+      language: file.language,
+      source: file.content,
+      stdin: parsed.data.stdin ?? '',
+      problemTemplateId,
+      tests: tests.map(t => ({ id: t.id, name: t.name, input: t.input, expected: t.expected, hidden: t.hidden }))
+    }, { jobId: execution.id });
+  }
+
   res.status(202).json({ execution });
+});
+
+router.get('/executor/jobs/:id', requireExecutorSecret, async (req, res) => {
+  const executionId = String(req.params.id);
+  const execution = await prisma.execution.findUnique({
+    where: { id: executionId },
+    select: {
+      id: true,
+      roomId: true,
+      language: true,
+      source: true,
+      stdin: true,
+      status: true,
+      fileId: true
+    }
+  });
+
+  if (!execution) return res.status(404).json({ error: 'Execution not found.' });
+  if (execution.status !== 'QUEUED' && execution.status !== 'RUNNING') {
+    return res.status(409).json({ error: `Execution is already ${execution.status.toLowerCase()}.` });
+  }
+
+  const room = await prisma.room.findUnique({
+    where: { id: execution.roomId },
+    select: { problem: true }
+  });
+
+  const tests = await prisma.testCase.findMany({
+    where: { roomId: execution.roomId, OR: [{ fileId: execution.fileId }, { fileId: null }] },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
+  });
+
+  if (execution.status === 'QUEUED') {
+    await prisma.execution.update({
+      where: { id: executionId },
+      data: { status: 'RUNNING', startedAt: new Date() }
+    });
+    await prisma.roomEvent.create({
+      data: {
+        roomId: execution.roomId,
+        userId: null,
+        type: 'EXECUTION_STARTED',
+        payload: { executionId }
+      }
+    }).catch(() => undefined);
+    await executionPublisher.publish(
+      'coderoom:execution',
+      JSON.stringify({ roomId: execution.roomId, executionId, status: 'RUNNING' })
+    );
+  }
+
+  const refreshed = execution.status === 'QUEUED'
+    ? { ...execution, status: 'RUNNING' as const }
+    : execution;
+
+  const problemTemplateId = (room?.problem as any)?.templateId ?? null;
+
+  res.json({
+    executionId: refreshed.id,
+    roomId: refreshed.roomId,
+    language: refreshed.language,
+    source: refreshed.source,
+    stdin: refreshed.stdin,
+    problemTemplateId,
+    tests: tests.map(t => ({
+      id: t.id,
+      name: t.name,
+      input: t.input,
+      expected: t.expected,
+      hidden: t.hidden
+    }))
+  });
+});
+
+router.post('/executor/jobs/:id/result', requireExecutorSecret, async (req, res) => {
+  const executionId = String(req.params.id);
+  const parsed = z.object({
+    status: z.enum(['COMPLETED', 'FAILED']),
+    stdout: z.string().max(250000).default(''),
+    stderr: z.string().max(250000).default(''),
+    exitCode: z.number().int().nullable().default(null),
+    durationMs: z.number().int().min(0).max(600000).default(0),
+    results: z.array(z.record(z.string(), z.unknown())).max(50).default([]),
+    failureReason: z.string().max(1000).nullable().default(null)
+  }).safeParse(req.body);
+
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid execution result.' });
+
+  const execution = await prisma.execution.findUnique({
+    where: { id: executionId },
+    select: { id: true, roomId: true, status: true }
+  });
+  if (!execution) return res.status(404).json({ error: 'Execution not found.' });
+
+  const updated = await prisma.execution.update({
+    where: { id: executionId },
+    data: {
+      status: parsed.data.status,
+      stdout: parsed.data.stdout,
+      stderr: parsed.data.stderr,
+      exitCode: parsed.data.exitCode,
+      durationMs: parsed.data.durationMs,
+      results: parsed.data.results as any,
+      failureReason: parsed.data.failureReason,
+      completedAt: new Date()
+    }
+  });
+
+  const eventType = parsed.data.status === 'COMPLETED' ? 'EXECUTION_COMPLETED' : 'EXECUTION_FAILED';
+  await prisma.roomEvent.create({
+    data: {
+      roomId: execution.roomId,
+      userId: null,
+      type: eventType,
+      payload: { executionId, status: parsed.data.status }
+    }
+  }).catch(() => undefined);
+
+  await executionPublisher.publish(
+    'coderoom:execution',
+    JSON.stringify({ roomId: execution.roomId, executionId, status: parsed.data.status })
+  );
+
+  res.json({ execution: updated });
 });
 
 router.get('/rooms/:id/executions', requireUser, roomAccess, async (req, res) => {
