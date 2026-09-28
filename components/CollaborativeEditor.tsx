@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
+
+import * as monaco from 'monaco-editor';
 import * as Y from 'yjs';
+
 import { MonacoBinding } from 'y-monaco';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import { io, type Socket } from 'socket.io-client';
@@ -146,7 +149,11 @@ export default function CollaborativeEditor({ file, canEdit, user, roomId, onSel
     if (model.getValue() !== sharedText) model.setValue(sharedText);
 
     readyRef.current = true;
-    cursorDisposableRef.current = editor.onDidChangeCursorSelection(event => onSelectionLine?.(event.selection.startLineNumber));
+    cursorDisposableRef.current = editor.onDidChangeCursorSelection(
+  (event: monaco.editor.ICursorSelectionChangedEvent) => {
+    onSelectionLine?.(event.selection.startLineNumber);
+  }
+);
 
     return () => {
       readyRef.current = false;
