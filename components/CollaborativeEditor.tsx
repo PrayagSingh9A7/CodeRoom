@@ -273,18 +273,18 @@ export default function CollaborativeEditor({
     /**
      * Socket connection error
      */
-    socket.on('connect_error', (error) => {
-      console.error(
-        '❌ CodeRoom socket connect_error:',
-        {
-          message: error.message,
-          description: error.description,
-          context: error.context,
-        }
-      );
+   socket.on('connect_error', (error) => {
+  console.error(
+    '❌ CodeRoom socket connect_error:',
+    {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+    }
+  );
 
-      onConnectionRef.current?.(false);
-    });
+  onConnectionRef.current?.(false);
+});
 
     /**
      * Socket disconnected
