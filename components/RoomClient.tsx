@@ -3,7 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, FileCode2, Flag, GitBranch, GripHorizontal, MessageCircle, Play, Plus, Share2, Trash2, Trophy, Users, X } from 'lucide-react';
 import type { Socket } from 'socket.io-client';
-import CollaborativeEditor from './CollaborativeEditor';
+import dynamic from 'next/dynamic';
+
+const CollaborativeEditor = dynamic(
+  () => import('@/components/CollaborativeEditor'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="editor-loading">
+        Preparing shared workspace…
+      </div>
+    ),
+  }
+);
 import Loading from './Loading';
 import { PROBLEM_TEMPLATES, type ProblemTemplate } from '@/lib/problems';
 
